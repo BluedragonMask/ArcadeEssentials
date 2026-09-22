@@ -2334,7 +2334,7 @@ extern "C" void __stdcall Pentane_Main() {
 		*reinterpret_cast<unsigned char*>(0x00863986) = 0xEB;   // skip Identity(param_2)
 		SkinBB_Relativise::install_at_ptr(0x00863874);
 
-				// Fix for "swooshes" (Survivial battery trail, Missile trails)
+				// Fix for "swooshes" (Survival battery trail, Missile trails)
 		sunset::utils::set_permission(reinterpret_cast<void*>(0x00d7f1c0), 1, sunset::utils::Perm::ExecuteReadWrite);
 		*reinterpret_cast<std::uint8_t*>(0x00d7f1c0) = 0x09; // render bucket 0x08 -> 0x09
 
@@ -2343,6 +2343,14 @@ extern "C" void __stdcall Pentane_Main() {
 
 		SwooshCmdSetCallback::install_at_ptr(0x00d7f29c);
 		RestoreSwooshPass::install_at_ptr(0x0062c870);
+
+		// Kills ArcadeManager attempting to create new save settings and audit file; the files can be placed where they'd usually be and function as normal.
+		sunset::utils::set_permission(reinterpret_cast<void*>(0x0045d150), 3, sunset::utils::Perm::ExecuteReadWrite);
+		*reinterpret_cast<std::uint16_t*>(0x0045d150) = 0xC031;
+		*reinterpret_cast<std::uint8_t*>(0x0045d152) = 0xC3;
+		sunset::utils::set_permission(reinterpret_cast<void*>(0x0045d210), 3, sunset::utils::Perm::ExecuteReadWrite);
+		*reinterpret_cast<std::uint16_t*>(0x0045d210) = 0xC031;
+		*reinterpret_cast<std::uint8_t*>(0x0045d212) = 0xC3;
 		
 		install_fmv_driver();
 
