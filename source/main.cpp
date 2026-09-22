@@ -1814,6 +1814,69 @@ DefineInlineHook(SkinBB_Relativise) {
 	}
 };
 
+// The two swoosh hooks to fix Missile/Survival trail, basically ripped from Win32Wii functionality
+DefineInlineHook(SwooshCmdSetCallback) {
+	// Port of Win32Wii swoosh executor (FUN_008150c0), run via Arcade's _callback_fn_cmd.
+	static void __cdecl Draw(std::uint32_t*, std::uint32_t inst) {
+		auto u32 = [](std::uintptr_t a) -> std::uint32_t& { return *reinterpret_cast<std::uint32_t*>(a); };
+
+		const std::uint32_t verts = u32(inst + 0xA4) & 0xFFFF;
+		if ((u32(inst + 0x08) & 0x8000) || verts < 3) return;
+
+		const std::uint32_t mat = u32(u32(0x019063B4) + 0x14);                 // r_context->material
+		auto dev = reinterpret_cast<IDirect3DDevice9*>(u32(0x01906334));       // s_D3DDevice
+
+		static const D3DVERTEXELEMENT9 layout[] = {
+			{ 0, 0x00, D3DDECLTYPE_FLOAT3,   D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
+			{ 0, 0x0C, D3DDECLTYPE_FLOAT4,   D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 1 },
+			{ 0, 0x1C, D3DDECLTYPE_FLOAT4,   D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 2 },
+			{ 0, 0x2C, D3DDECLTYPE_FLOAT4,   D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+			{ 0, 0x3C, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR,    0 },
+			D3DDECL_END()
+		};
+		static IDirect3DVertexDeclaration9* decl = nullptr;
+		if (!decl) dev->CreateVertexDeclaration(layout, &decl);
+
+		// Invalidate the renderer's cached stream/decl state (0x01906338..0x0190637F).
+		std::memset(reinterpret_cast<void*>(0x01906338), 0, 0x48);
+
+		dev->SetIndices(nullptr);
+		dev->SetStreamSource(0, nullptr, 0, 0x40);
+		dev->SetVertexDeclaration(decl);
+
+		using M = void(__thiscall*)(std::uint32_t);
+		using MA = void(__thiscall*)(std::uint32_t, std::uint32_t);
+		reinterpret_cast<M>(0x00846E80)(mat);        // Material::Begin
+		reinterpret_cast<MA>(0x00846EE0)(mat, 0);    // Material::BeginPass(0)
+		reinterpret_cast<MA>(0x00849A30)(mat, 0);    // Material::CommitPerInstance(NULL)
+
+		float* vb = nullptr; int base = 0; std::uint16_t* ib = nullptr;
+		if (reinterpret_cast<int(__cdecl*)(int, int, std::uint32_t, std::uint32_t, float**, int*, std::uint16_t**)>(0x0087B940)
+			(5, 0x40, verts, verts - 2, &vb, &base, &ib)) {
+			const int built = reinterpret_cast<int(__cdecl*)(std::uint32_t, char, float*, int, void*)>(0x00D52BA0)
+				(inst, 1, vb, static_cast<int>(verts), nullptr);
+			for (int i = 0; i < built - 2; ++i) ib[i] = static_cast<std::uint16_t>(base + i);
+			reinterpret_cast<void(__cdecl*)(int)>(0x0087BBD0)(1);
+		}
+
+		reinterpret_cast<M>(0x00847040)(mat);        // Material::EndPass
+		reinterpret_cast<M>(0x00846ED0)(mat);        // Material::End
+	}
+
+	static void __cdecl callback(sunset::InlineCtx & ctx) {
+		const std::uint32_t entry = *reinterpret_cast<std::uint32_t*>(ctx.ebp.unsigned_integer - 0x04);
+		if (entry) *reinterpret_cast<std::uint32_t*>(entry + 0x08) = reinterpret_cast<std::uint32_t>(&Draw);
+	}
+};
+
+// Entry of FUN_0062c870 (after particle pass): call the dead swoosh draw loop FUN_00d523d0.
+DefineInlineHook(RestoreSwooshPass) {
+	static void __cdecl callback(sunset::InlineCtx & ctx) {
+		const std::uint32_t sceneCtx = *reinterpret_cast<std::uint32_t*>(ctx.esp.unsigned_integer + 4);
+		reinterpret_cast<void(__cdecl*)(std::uint32_t, std::uint32_t)>(0x00D523D0)
+			(*reinterpret_cast<std::uint32_t*>(sceneCtx + 0x50), 0x80);
+	}
+};
 extern "C" void __stdcall Pentane_Main() {
 	// FIXME: link against Pentane.lib properly instead of this bullshit!!!!
 	Pentane_LogUTF8 = reinterpret_cast<void(*)(PentaneCStringView*)>(GetProcAddress(GetModuleHandleA("Pentane.dll"), "Pentane_LogUTF8"));
@@ -2270,6 +2333,16 @@ extern "C" void __stdcall Pentane_Main() {
 		sunset::utils::set_permission(reinterpret_cast<void*>(0x00863986), 1, sunset::utils::Perm::ExecuteReadWrite);
 		*reinterpret_cast<unsigned char*>(0x00863986) = 0xEB;   // skip Identity(param_2)
 		SkinBB_Relativise::install_at_ptr(0x00863874);
+
+				// Fix for "swooshes" (Survivial battery trail, Missile trails)
+		sunset::utils::set_permission(reinterpret_cast<void*>(0x00d7f1c0), 1, sunset::utils::Perm::ExecuteReadWrite);
+		*reinterpret_cast<std::uint8_t*>(0x00d7f1c0) = 0x09; // render bucket 0x08 -> 0x09
+
+		sunset::utils::set_permission(reinterpret_cast<void*>(0x00d7f2a4), 1, sunset::utils::Perm::ExecuteReadWrite);
+		*reinterpret_cast<std::uint8_t*>(0x00d7f2a4) = 0x0C; // instance copy -> cmd+0xC
+
+		SwooshCmdSetCallback::install_at_ptr(0x00d7f29c);
+		RestoreSwooshPass::install_at_ptr(0x0062c870);
 		
 		install_fmv_driver();
 
