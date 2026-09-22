@@ -1889,6 +1889,16 @@ DefineInlineHook(ShieldDeathResetEnable) {
 	}
 };
 
+// TLDR of this is understeering config in Win32Wii had .75 if not drifting, .5 if you are; Arcade locked to .5, this fixes that.
+DefineInlineHook(ConsumerUndersteer) {
+	static void __cdecl callback(sunset::InlineCtx & ctx) {
+		const auto veh = *reinterpret_cast<std::uintptr_t*>(ctx.ebp.unsigned_integer - 0x400);
+		if (!veh) return;
+		const bool drifting = *reinterpret_cast<std::uint8_t*>(veh + 0x89C) != 0;
+		*reinterpret_cast<float*>(ctx.ebp.unsigned_integer - 0xC) = drifting ? 0.5f : 0.75f;
+	}
+};
+
 extern "C" void __stdcall Pentane_Main() {
 	// FIXME: link against Pentane.lib properly instead of this bullshit!!!!
 	Pentane_LogUTF8 = reinterpret_cast<void(*)(PentaneCStringView*)>(GetProcAddress(GetModuleHandleA("Pentane.dll"), "Pentane_LogUTF8"));
@@ -2366,6 +2376,16 @@ extern "C" void __stdcall Pentane_Main() {
 
 		// Allows Professor Z to despawn you in Survival
 		ShieldDeathResetEnable::install_at_ptr(0x00513F3A);
+
+		// Restores 1:1 360 steering
+		sunset::inst::nop(reinterpret_cast<void*>(0x006A6435), 6); // Fixes steering smoothing/damper by nuking conditional.
+		ConsumerUndersteer::install_at_ptr(0x006A5D5B);
+
+		// 1:1 ITZ Boost gain on QuickStart by removing hardcoded RT Aurora values (Thanks Ft).
+		sunset::inst::nop(reinterpret_cast<void*>(0x006e0e93), 8);
+		sunset::inst::nop(reinterpret_cast<void*>(0x006e0ea3), 8);
+		sunset::inst::nop(reinterpret_cast<void*>(0x006e0eb3), 8);
+		sunset::inst::nop(reinterpret_cast<void*>(0x006e0ec3), 8);
 		
 		install_fmv_driver();
 
