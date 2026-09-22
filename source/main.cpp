@@ -1899,6 +1899,23 @@ DefineInlineHook(ConsumerUndersteer) {
 	}
 };
 
+// Restores Spy Point flash popup and point addition to your save.
+DefineInlineHook(SpyPointPickup) {
+	static void __cdecl callback(sunset::InlineCtx & ctx) {
+		const char idx = *reinterpret_cast<char*>(ctx.ebp.unsigned_integer - 0xA4);
+		
+		// Arcade; spy points wouldn't actually be added without this, just adds to your stats.
+		reinterpret_cast<void(__thiscall*)(void*, int, int)>(0x00F66B20)(*reinterpret_cast<void**>(0x0192C5EC), 1, 100);
+
+		void* hud = reinterpret_cast<void* (__thiscall*)(void*, char)>(0x00552B80)(*reinterpret_cast<void**>(0x0192B8B4), idx);
+		if (!hud) return;
+
+		char text[64];
+		sprintf_s(text, "100 %s", reinterpret_cast<const char* (__thiscall*)(void*, const char*, char)>(0x00CF6DD0)(reinterpret_cast<void*>(0x0192674C), "SpyPoints_Caps", 1));
+		reinterpret_cast<void(__thiscall*)(void*, const char*, float, const char*, const char*, int)>(0x0054EB80)(hud, text, 2.0f, "IG_BM_Suitcase_AC", "", 0);
+	}
+};
+
 extern "C" void __stdcall Pentane_Main() {
 	// FIXME: link against Pentane.lib properly instead of this bullshit!!!!
 	Pentane_LogUTF8 = reinterpret_cast<void(*)(PentaneCStringView*)>(GetProcAddress(GetModuleHandleA("Pentane.dll"), "Pentane_LogUTF8"));
@@ -1907,7 +1924,7 @@ extern "C" void __stdcall Pentane_Main() {
 	// Make sure we're attached to Arcade, not any other game.
 	const auto nt_header = reinterpret_cast<IMAGE_NT_HEADERS*>(reinterpret_cast<std::uintptr_t>(GetModuleHandleW(nullptr)) + reinterpret_cast<IMAGE_DOS_HEADER*>(GetModuleHandleW(nullptr))->e_lfanew);
 	if (nt_header->FileHeader.TimeDateStamp != 0x521E2EAF) {
-		logger::log("[ArcadeEssentials::Pentane_Main] `ArcadeEssentials` is not compatble with Cars 2: The Video Game (PC)!");
+		logger::log("[ArcadeEssentials::Pentane_Main] `ArcadeEssentials` is not compatible with Cars 2: The Video Game (PC)!");
 	}
 	else {
 		if (!GLOBAL_CONFIG->read()) {
@@ -2386,6 +2403,9 @@ extern "C" void __stdcall Pentane_Main() {
 		sunset::inst::nop(reinterpret_cast<void*>(0x006e0ea3), 8);
 		sunset::inst::nop(reinterpret_cast<void*>(0x006e0eb3), 8);
 		sunset::inst::nop(reinterpret_cast<void*>(0x006e0ec3), 8);
+
+		// Restores Scaleform/Flash flyout for the Spy Point briefcases and adds back point addition to save.
+		SpyPointPickup::install_at_ptr(0x0066B7B7);
 		
 		install_fmv_driver();
 
