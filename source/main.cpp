@@ -1877,6 +1877,18 @@ DefineInlineHook(RestoreSwooshPass) {
 			(*reinterpret_cast<std::uint32_t*>(sceneCtx + 0x50), 0x80);
 	}
 };
+
+// This literally just makes Professor Z capable of actually killing you on lap 1 in Survival mode.
+DefineInlineHook(ShieldDeathResetEnable) {
+	static void __cdecl callback(sunset::InlineCtx & ctx) {
+		auto disp = *reinterpret_cast<void**>(0x01926EF0);
+		auto h = *reinterpret_cast<std::uint32_t*>(ctx.ebp.unsigned_integer - 0xAC);
+		if (disp && h)
+			reinterpret_cast<bool(__thiscall*)(void*, const char*, const void*, std::uint32_t, std::uint32_t)>
+			(0x00CEF520)(disp, "DisableReset", "-1", h, h);                                 // Win32Wii case 10: DisableReset "-1"
+	}
+};
+
 extern "C" void __stdcall Pentane_Main() {
 	// FIXME: link against Pentane.lib properly instead of this bullshit!!!!
 	Pentane_LogUTF8 = reinterpret_cast<void(*)(PentaneCStringView*)>(GetProcAddress(GetModuleHandleA("Pentane.dll"), "Pentane_LogUTF8"));
@@ -2334,7 +2346,7 @@ extern "C" void __stdcall Pentane_Main() {
 		*reinterpret_cast<unsigned char*>(0x00863986) = 0xEB;   // skip Identity(param_2)
 		SkinBB_Relativise::install_at_ptr(0x00863874);
 
-				// Fix for "swooshes" (Survival battery trail, Missile trails)
+		// Fix for "swooshes" (Survival battery trail, Missile trails)
 		sunset::utils::set_permission(reinterpret_cast<void*>(0x00d7f1c0), 1, sunset::utils::Perm::ExecuteReadWrite);
 		*reinterpret_cast<std::uint8_t*>(0x00d7f1c0) = 0x09; // render bucket 0x08 -> 0x09
 
@@ -2351,6 +2363,9 @@ extern "C" void __stdcall Pentane_Main() {
 		sunset::utils::set_permission(reinterpret_cast<void*>(0x0045d210), 3, sunset::utils::Perm::ExecuteReadWrite);
 		*reinterpret_cast<std::uint16_t*>(0x0045d210) = 0xC031;
 		*reinterpret_cast<std::uint8_t*>(0x0045d212) = 0xC3;
+
+		// Allows Professor Z to despawn you in Survival
+		ShieldDeathResetEnable::install_at_ptr(0x00513F3A);
 		
 		install_fmv_driver();
 
