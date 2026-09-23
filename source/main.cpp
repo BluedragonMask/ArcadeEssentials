@@ -2406,6 +2406,15 @@ extern "C" void __stdcall Pentane_Main() {
 
 		// Restores Scaleform/Flash flyout for the Spy Point briefcases and adds back point addition to save.
 		SpyPointPickup::install_at_ptr(0x0066B7B7);
+
+		// RaceIntro/Respawn causing 2D textures to vanish/corrupt: g_FinalAlpha uploaded to VS instead of PS (vtable +0x178 -> +0x1B4).
+		// On another note? I know this was a dev renderer.... But good grief, man, this is another "oh we did da wong thang"
+		// Compare Win32Wii 0x0080CE36 / 0x0080C743 with Arcade 0x00887636 / 0x00888169.
+		sunset::utils::set_permission(reinterpret_cast<void*>(0x00887638), 1, sunset::utils::Perm::ExecuteReadWrite);
+		*reinterpret_cast<std::uint8_t*>(0x00887638) = 0xB4;
+
+		sunset::utils::set_permission(reinterpret_cast<void*>(0x0088816B), 1, sunset::utils::Perm::ExecuteReadWrite);
+		*reinterpret_cast<std::uint8_t*>(0x0088816B) = 0xB4;
 		
 		install_fmv_driver();
 
