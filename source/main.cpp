@@ -1435,8 +1435,6 @@ DefineReplacementHook(CarsGame_PlayIntroVideos) {
 		player.Play(&aborted);
 		player.Queue("%1/avlogo", true, 0.0, false, false);
 		player.Play(&aborted);
-		player.Queue("%1/gslogo", true, 0.0, false, false);
-		player.Play(&aborted);
 		player.Queue("%1/DIS", true, delayTime, false, false);
 		player.Play(&aborted);
 		player.Queue("%1/Copyright", false, 0.0, false, false);
