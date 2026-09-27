@@ -2386,6 +2386,11 @@ extern "C" void __stdcall Pentane_Main() {
 		SwooshCmdSetCallback::install_at_ptr(0x00d7f29c);
 		RestoreSwooshPass::install_at_ptr(0x0062c870);
 
+		// Increase the swoosh VB from 0x8000 (32 KiB / 512 verts) to 0x10000 (64 KiB / 1024 verts).
+		// Win32Wii eqv, swooshes go over this. The IB on Win32Wii is also bigger; changing it doesn't seem needed.
+		sunset::utils::set_permission(reinterpret_cast<void*>(0x0087BCAB), 4, sunset::utils::Perm::ExecuteReadWrite);
+		*reinterpret_cast<std::uint32_t*>(0x0087BCAB) = 0x10000;
+
 		// Kills ArcadeManager attempting to create new save settings and audit file; the files can be placed where they'd usually be and function as normal.
 		sunset::utils::set_permission(reinterpret_cast<void*>(0x0045d150), 3, sunset::utils::Perm::ExecuteReadWrite);
 		*reinterpret_cast<std::uint16_t*>(0x0045d150) = 0xC031;
