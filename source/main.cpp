@@ -1919,6 +1919,14 @@ DefineInlineHook(SpyPointPickup) {
 	}
 };
 
+DefineReplacementHook(RestoreSpyPointsScreen) {
+    //Stubbed in Arcade. Win32Wii 0x00523EE0 pushes "results_spy_points" (mode 4)
+    static void __fastcall callback(void* _this, std::uintptr_t, int arg) {
+        reinterpret_cast<void(__thiscall*)(void*, const char*, int, int)>(0x00551B60)
+            (_this, reinterpret_cast<const char*>(0x015E949C), 4, arg);   // "results_spy_points"
+    }
+};
+
 extern "C" void __stdcall Pentane_Main() {
 	// FIXME: link against Pentane.lib properly instead of this bullshit!!!!
 	Pentane_LogUTF8 = reinterpret_cast<void(*)(PentaneCStringView*)>(GetProcAddress(GetModuleHandleA("Pentane.dll"), "Pentane_LogUTF8"));
@@ -2415,6 +2423,9 @@ extern "C" void __stdcall Pentane_Main() {
 		// Restores Scaleform/Flash flyout for the Spy Point briefcases and adds back point addition to save.
 		SpyPointPickup::install_at_ptr(0x0066B7B7);
 
+		// Spy points results screen Win32Wii 0x004CFB10 / 0x004D0C80 show it when clearance < 6; Arcade it probably RTs doing.
+        RestoreSpyPointsScreen::install_at_ptr(0x00551A80);
+		
 		// RaceIntro/Respawn causing 2D textures to vanish/corrupt: g_FinalAlpha uploaded to VS instead of PS (vtable +0x178 -> +0x1B4).
 		// On another note? I know this was a dev renderer.... But good grief, man, this is another "oh we did da wong thang"
 		// Compare Win32Wii 0x0080CE36 / 0x0080C743 with Arcade 0x00887636 / 0x00888169.
