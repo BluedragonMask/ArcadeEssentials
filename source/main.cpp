@@ -2474,6 +2474,12 @@ extern "C" void __stdcall Pentane_Main() {
 
 		// Fixes Hunter/Attack lemon rendering
 		ReCachePerMaterial::install_at_ptr(0x008895B6);
+
+		// Fixes energy gain color, I literally don't think this is needed *anywhere* else but it technically could be
+		// Ambient accumulation buffer (Arcade 0x00630960) is created as engine format 7 = A8R8G8B8 clamping ambient volumes at 1.0
+		// Xbox 360 uses a higher range format (0x30). Use engine format 50 = A16B16G16R16F instead.
+		sunset::utils::set_permission(reinterpret_cast<void*>(0x006309AB), 1, sunset::utils::Perm::ExecuteReadWrite);
+		*reinterpret_cast<std::uint8_t*>(0x006309AB) = 0x32;
 		
 		install_fmv_driver();
 
