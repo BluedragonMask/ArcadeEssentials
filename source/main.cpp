@@ -1927,6 +1927,23 @@ DefineReplacementHook(RestoreSpyPointsScreen) {
     }
 };
 
+// Kill crowd rendering in PiP
+DefineReplacementHook(CrowdRenderGate) {
+	static inline bool pip = false;
+	static void __fastcall callback(void* self, std::uintptr_t edx, std::uint32_t a1, std::uint32_t a2, char a3) {
+		if (pip) { pip = false; return; }
+		CrowdRenderGate::original(self, edx, a1, a2, a3);
+	}
+};
+
+// Tag whether this crowd render is the PiP
+DefineInlineHook(CrowdViewTag) {
+	static void __cdecl callback(sunset::InlineCtx & ctx) {
+		CrowdRenderGate::pip = *reinterpret_cast<std::uint32_t*>(ctx.ebp.unsigned_integer + 4) == 0x0062c561;
+	}
+};
+
+
 extern "C" void __stdcall Pentane_Main() {
 	// FIXME: link against Pentane.lib properly instead of this bullshit!!!!
 	Pentane_LogUTF8 = reinterpret_cast<void(*)(PentaneCStringView*)>(GetProcAddress(GetModuleHandleA("Pentane.dll"), "Pentane_LogUTF8"));
@@ -2425,6 +2442,12 @@ extern "C" void __stdcall Pentane_Main() {
 
 		// Spy points results screen Win32Wii 0x004CFB10 / 0x004D0C80 show it when clearance < 6; Arcade it probably RTs doing.
         RestoreSpyPointsScreen::install_at_ptr(0x00551A80);
+		// Things I forgor to commit before. I'm doing it through GitHub site bc my real main.cpp is messy, still for the Spy Points screen.
+		sunset::utils::set_permission(reinterpret_cast<void*>(0x004FE2EE), 1, sunset::utils::Perm::ExecuteReadWrite);
+		*reinterpret_cast<std::uint8_t*>(0x004FE2EE) = 0x8E;
+		sunset::utils::set_permission(reinterpret_cast<void*>(0x004FE25D), 2, sunset::utils::Perm::ExecuteReadWrite);
+		*reinterpret_cast<std::uint16_t*>(0x004FE25D) = 0x64EB;
+
 		
 		// RaceIntro/Respawn causing 2D textures to vanish/corrupt: g_FinalAlpha uploaded to VS instead of PS (vtable +0x178 -> +0x1B4).
 		// On another note? I know this was a dev renderer.... But good grief, man, this is another "oh we did da wong thang"
@@ -2434,6 +2457,10 @@ extern "C" void __stdcall Pentane_Main() {
 
 		sunset::utils::set_permission(reinterpret_cast<void*>(0x0088816B), 1, sunset::utils::Perm::ExecuteReadWrite);
 		*reinterpret_cast<std::uint8_t*>(0x0088816B) = 0xB4;
+
+		// Gets rid of 2D billboarded crowds in PiP
+		CrowdViewTag::install_at_ptr(0x0062c6be);
+		CrowdRenderGate::install_at_ptr(0x00532EA0);
 		
 		install_fmv_driver();
 
