@@ -1423,6 +1423,8 @@ DefineReplacementHook(CarsGame_PlayIntroVideos) {
 		(*g_FlashGui)->Update();
 
 		FMV::Player player{};
+		*reinterpret_cast<Subtitles**>(reinterpret_cast<std::uintptr_t>(&player) + 4) = &subtitles;
+		// Game sets this before Begin at Win32Wii 0x00527DFD / Arcade 0x004B9F0E.
 		player.Begin();
 		bool aborted = false;
 		float delayTime = 70.0f;
