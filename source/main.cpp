@@ -1872,9 +1872,12 @@ DefineInlineHook(SwooshCmdSetCallback) {
 // Entry of FUN_0062c870 (after particle pass): call the dead swoosh draw loop FUN_00d523d0.
 DefineInlineHook(RestoreSwooshPass) {
 	static void __cdecl callback(sunset::InlineCtx & ctx) {
-		const std::uint32_t sceneCtx = *reinterpret_cast<std::uint32_t*>(ctx.esp.unsigned_integer + 4);
-		reinterpret_cast<void(__cdecl*)(std::uint32_t, std::uint32_t)>(0x00D523D0)
-			(*reinterpret_cast<std::uint32_t*>(sceneCtx + 0x50), 0x80);
+		const std::uintptr_t esp = ctx.esp.unsigned_integer;
+		// Get it out of PiP
+		if (*reinterpret_cast<std::uint32_t*>(esp) != 0x0062d804) return;
+		const std::uint32_t sceneCtx = *reinterpret_cast<std::uint32_t*>(esp + 4);
+		const std::uint32_t viewKey = *reinterpret_cast<std::uint32_t*>(sceneCtx + 0x50);
+		reinterpret_cast<void(__cdecl*)(std::uint32_t, std::uint32_t)>(0x00d523d0)(viewKey, 0x80);
 	}
 };
 
