@@ -1943,6 +1943,16 @@ DefineInlineHook(CrowdViewTag) {
 	}
 };
 
+// Fixes Hunter cars rendering being broken caused by the first material's vertex declaration sticking to the cache.
+// Invalidate the cache slot whenever a different material uses it.
+DefineInlineHook(ReCachePerMaterial) {
+	static inline std::unordered_map<std::uintptr_t, std::uintptr_t> owner{};
+	static void _cdecl callback(sunset::InlineCtx & ctx) {
+		auto* a = reinterpret_cast<std::uintptr_t*>(ctx.ebp.unsigned_integer); // a[3] = material, a[4] = cache
+		auto* slot = reinterpret_cast<std::uintptr_t*>(a[4] + 0xC) + !*reinterpret_cast<std::uint32_t*>(*reinterpret_cast<std::uintptr_t*>(0x019063B4) + 0x38);
+		if (std::exchange(owner[reinterpret_cast<std::uintptr_t>(slot)], a[3]) != a[3]) *slot = 0;
+	}
+};
 
 extern "C" void __stdcall Pentane_Main() {
 	// FIXME: link against Pentane.lib properly instead of this bullshit!!!!
@@ -2461,6 +2471,9 @@ extern "C" void __stdcall Pentane_Main() {
 		// Gets rid of 2D billboarded crowds in PiP
 		CrowdViewTag::install_at_ptr(0x0062c6be);
 		CrowdRenderGate::install_at_ptr(0x00532EA0);
+
+		// Fixes Hunter/Attack lemon rendering
+		ReCachePerMaterial::install_at_ptr(0x008895B6);
 		
 		install_fmv_driver();
 
